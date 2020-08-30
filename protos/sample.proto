@@ -1,0 +1,40 @@
+syntax = "proto3";
+package sample;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
+
+option go_package = ".;sample";
+
+message Outer {
+  string str_val = 1;
+  int32 int_val = 2;
+  bool bool_val = 3;
+  double double_val = 4;
+  bytes bytes_val = 5;
+
+  message Inner {
+    string id = 1;
+  }
+
+  enum EnumType {
+    OK = 0;
+    NOT_OK = 1;
+  }
+
+  repeated Inner repeated_type = 6;
+  map <string, Inner> map_type = 7;
+
+  EnumType enum_type = 8;
+  oneof oneof_type {
+    string oneof_string = 9;
+    int32 oneof_int = 10;
+  }
+
+  google.protobuf.Timestamp last_updated = 11;
+  google.protobuf.Duration last_updated_duration = 12;
+  google.protobuf.Any details = 13;
+
+  repeated int32 repeated_type_simple = 14;
+}
