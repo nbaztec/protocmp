@@ -20,14 +20,16 @@ protoc-%:
 
 .PHONY: protos
 protos: guard-PROTOC_VERSION guard-PROTOC_GEN_GO
+	echo "> BUILD protoc@v$(PROTOC_VERSION) protoc-gen-go@v$(PROTOC_GEN_GO)"
 	$(MAKE) protoc-$(PROTOC_VERSION)
-	mkdir -p protos/$(PROTOC_VERSION)/sample
-	go get -u github.com/golang/protobuf/protoc-gen-go@v$(PROTOC_GEN_GO) && go mod vendor
-	tools/$(PROTOC_VERSION)/bin/protoc -I ./protos --go_out=plugins=grpc:protos/$(PROTOC_VERSION)/sample sample.proto
+	mkdir -p protos/sample
+	go get -u github.com/golang/protobuf/protoc-gen-go@v$(PROTOC_GEN_GO)
+	tools/$(PROTOC_VERSION)/bin/protoc -I ./protos --go_out=plugins=grpc:./protos/sample sample.proto
+	go mod vendor  &>/dev/null
 
 .PHONY: test
 test:
-	go test -race
+	go test -race -test.parallel=1 main_test.go -test.v
 
 .PHONY: test-all
 test-all: clean

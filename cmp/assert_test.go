@@ -3,12 +3,12 @@ package cmp
 import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
-	"github.com/nbaztec/protocmp/protos/3.5.1/sample"
+	"github.com/nbaztec/protocmp/protos/sample"
 	"testing"
 	"time"
 )
 
-func TestAssertEqual(t *testing.T) {
+func TestAssert(t *testing.T) {
 	now := ptypes.TimestampNow()
 
 	a := &sample.Outer{

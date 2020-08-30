@@ -5,15 +5,19 @@ import (
 	"testing"
 )
 
-func AssertEqual(t *testing.T, expected, actual proto.Message) {
+func Equal(t *testing.T, expected, actual proto.Message) *MatchError {
 	if proto.Equal(expected, actual) {
-		return
+		return nil
 	}
 
-	expectedFields := parse(expected)
 	actualFields := parse(actual)
+	expectedFields := parse(expected)
 
-	err := matchFields(expectedFields, actualFields)
+	return matchFields(expectedFields, actualFields)
+}
+
+func AssertEqual(t *testing.T, expected, actual proto.Message) {
+	err := Equal(t, expected, actual)
 	if err != nil {
 		t.Error(err)
 	}

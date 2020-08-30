@@ -34,8 +34,86 @@ func parseRecursive(value interface{}, fields []*fieldInfo) []*fieldInfo {
 		vt = vt.Elem()
 	}
 
+	if isPrimitive(vt.Kind()) {
+		return []*fieldInfo{
+			{
+				name:  "",
+				kind:  vt.Kind(),
+				value: v,
+			},
+		}
+	}
+
+	switch vt.Kind() {
+	case reflect.Slice:
+		if v.IsNil() {
+			return nil
+		}
+
+		var items []*fieldInfo
+		for i := 0; i < v.Len(); i++ {
+			slv := v.Index(i).Interface()
+			slt := reflect.TypeOf(slv)
+			if isPrimitive(slt.Kind()) {
+				items = append(items, &fieldInfo{
+					name:  fmt.Sprintf("[%d]", i),
+					kind:  slt.Kind(),
+					value: slv,
+				})
+			} else {
+				fiItem := &fieldInfo{
+					name: fmt.Sprintf("[%d]", i),
+					kind: slt.Kind(),
+				}
+
+				if !reflect.ValueOf(slv).IsNil() {
+					fiItem.kind = reflect.TypeOf(slv).Kind()
+					fiItem.value = parseRecursive(slv, nil)
+				}
+
+				items = append(items, fiItem)
+			}
+		}
+		return items
+	case reflect.Map:
+		if v.IsNil() {
+			return nil
+		}
+		var items []*fieldInfo
+		slSorted := Sort(v)
+		for _, k := range slSorted.Key {
+			slv := v.MapIndex(k).Interface()
+			slt := reflect.TypeOf(slv)
+			if isPrimitive(slt.Kind()) {
+				items = append(items, &fieldInfo{
+					name:  fmt.Sprintf("[%s]", k),
+					kind:  slt.Kind(),
+					value: slv,
+				})
+			} else {
+				fiItem := &fieldInfo{
+					name: fmt.Sprintf("[%s]", k),
+					kind: slt.Kind(),
+				}
+
+				if !reflect.ValueOf(slv).IsNil() {
+					fiItem.kind = reflect.TypeOf(slv).Kind()
+					fiItem.value = parseRecursive(slv, nil)
+				}
+
+				items = append(items, fiItem)
+			}
+		}
+		return items
+	}
+
+	//fmt.Println(v, v.Kind(), vt.Kind())
 	for i := 0; i < vt.NumField(); i++ {
 		f := vt.Field(i)
+
+		if !v.IsValid() {
+			continue
+		}
 
 		// handle protobuf oneof fields
 		_, ok := f.Tag.Lookup(tagProtobufOneof)
@@ -65,64 +143,15 @@ func parseRecursive(value interface{}, fields []*fieldInfo) []*fieldInfo {
 			}
 
 		case reflect.Slice:
-			sl := reflect.ValueOf(fv)
-			if !sl.IsNil() {
-				var items []*fieldInfo
-				for i := 0; i < sl.Len(); i++ {
-					slv := sl.Index(i).Interface()
-					slt := reflect.TypeOf(slv)
-					if isPrimitive(slt.Kind()) {
-						items = append(items, &fieldInfo{
-							name:  fmt.Sprintf("[%d]", i),
-							kind:  slt.Kind(),
-							value: slv,
-						})
-					} else {
-						fiItem := &fieldInfo{
-							name: fmt.Sprintf("[%d]", i),
-							kind: slt.Kind(),
-						}
-
-						if !reflect.ValueOf(slv).IsNil() {
-							fiItem.kind = reflect.TypeOf(slv).Kind()
-							fiItem.value = parseRecursive(slv, nil)
-						}
-
-						items = append(items, fiItem)
-					}
-				}
-				fi.value = items
+			fiv := parseRecursive(fv, nil)
+			if fiv != nil {
+				fi.value = fiv
 			}
 		case reflect.Map:
-			sl := reflect.ValueOf(fv)
-			if !sl.IsNil() {
-				var items []*fieldInfo
-				for _, k := range sl.MapKeys() {
-					slv := sl.MapIndex(k).Interface()
-					slt := reflect.TypeOf(slv)
-					if isPrimitive(slt.Kind()) {
-						items = append(items, &fieldInfo{
-							name:  fmt.Sprintf("[%s]", k),
-							kind:  slt.Kind(),
-							value: slv,
-						})
-					} else {
-						fiItem := &fieldInfo{
-							name: fmt.Sprintf("[%s]", k),
-							kind: slt.Kind(),
-						}
-
-						if !reflect.ValueOf(slv).IsNil() {
-							fiItem.kind = reflect.TypeOf(slv).Kind()
-							fiItem.value = parseRecursive(slv, nil)
-						}
-
-						items = append(items, fiItem)
-					}
-				}
-				fi.value = items
+			fiv := parseRecursive(fv, nil)
+			if fiv != nil {
+				fi.value = fiv
 			}
-
 		default:
 			fi.value = fv
 		}

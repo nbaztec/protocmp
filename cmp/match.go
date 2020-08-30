@@ -45,7 +45,7 @@ func matchFieldsRecursive(key string, fieldsA, fieldsB []*fieldInfo, fm fieldMap
 		}
 
 		if err := matchWithValueNil(fiA.value, fiB.value); err != nil {
-			return newMatchError(fmt.Errorf("field nil: %s\n%s\n", fieldKey, err), fieldsA, fieldsB)
+			return newMatchError(fmt.Errorf("field value mismatch: %s\n%s\n", fieldKey, err), fieldsA, fieldsB)
 		}
 
 		switch fiA.kind {
@@ -71,11 +71,11 @@ func matchFieldsRecursive(key string, fieldsA, fieldsB []*fieldInfo, fm fieldMap
 
 		default:
 			if fiA.kind != fiB.kind {
-				return newMatchError(fmt.Errorf("field type mismatch %s\n+ %+v\n- %+v\n", fieldKey, fiA.kind, fiB.kind), fieldsA, fieldsB)
+				return newMatchError(fmt.Errorf("field type mismatch: %s\n+ %+v\n- %+v\n", fieldKey, fiA.kind, fiB.kind), fieldsA, fieldsB)
 			}
 
 			if fiA.value != fiB.value {
-				return newMatchError(fmt.Errorf("field value mismatch %s\n+ %+v\n- %+v\n", fieldKey, fiA.value, fiB.value), fieldsA, fieldsB)
+				return newMatchError(fmt.Errorf("field value mismatch: %s\n+ %+v\n- %+v\n", fieldKey, fiA.value, fiB.value), fieldsA, fieldsB)
 			}
 		}
 	}

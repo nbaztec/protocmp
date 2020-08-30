@@ -1,4 +1,3 @@
 .idea/
 tools
-protos/**
-!protos/sample.proto
+protos/sample/
