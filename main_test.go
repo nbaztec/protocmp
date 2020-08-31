@@ -2,7 +2,7 @@ package protocmp
 
 import (
 	"fmt"
-	"github.com/nbaztec/protocmp/cmp"
+	"github.com/nbaztec/protocmp/cmplegacy"
 	"os"
 	"os/exec"
 	"testing"
@@ -23,35 +23,35 @@ var tests = []struct{
 } {
 	{
 		name: "assert equal",
-		fn:   cmp.TestAssertEqual,
+		fn:   cmplegacy.TestAssertEqual,
 	},
 	{
 		name: "string",
-		fn:   cmp.TestAssertString,
+		fn:   cmplegacy.TestAssertString,
 	},
 	{
 		name: "int",
-		fn:   cmp.TestAssertInt,
+		fn:   cmplegacy.TestAssertInt,
 	},
 	{
 		name: "bool",
-		fn:   cmp.TestAssertBool,
+		fn:   cmplegacy.TestAssertBool,
 	},
 	{
 		name: "double",
-		fn:   cmp.TestAssertDouble,
+		fn:   cmplegacy.TestAssertDouble,
 	},
 	{
 		name: "bytes",
-		fn:   cmp.TestAssertBytes,
+		fn:   cmplegacy.TestAssertBytes,
 	},
 	{
 		name: "repeated",
-		fn:   cmp.TestAssertRepeated,
+		fn:   cmplegacy.TestAssertRepeated,
 	},
 	{
 		name: "repeated simple",
-		fn:   cmp.TestAssertRepeatedSimple,
+		fn:   cmplegacy.TestAssertRepeatedSimple,
 	},
 }
 

@@ -15,7 +15,7 @@ protoc-%:
 	$(eval VERSION := $*)
 	rm -rf tools/$(VERSION) || true
 	mkdir -p tools/$(VERSION)
-	wget https://github.com/protocolbuffers/protobuf/releases/download/v$(VERSION)/protoc-$(VERSION)-linux-x86_64.zip -qO tools/protoc.zip
+	wget https://github.com/protocolbuffers/protobuf/releases/download/v$(VERSION)/protoc-$(VERSION)-osx-x86_64.zip -qO tools/protoc.zip
 	unzip -q tools/protoc.zip -d tools/$(VERSION)
 
 .PHONY: protos

@@ -1,21 +1,38 @@
 package cmp
 
-import "fmt"
+import (
+	"google.golang.org/protobuf/reflect/protoreflect"
+)
 
-type MatchError struct {
-	mainErr    error
-	fiExpected []*fieldInfo
-	fiActual   []*fieldInfo
+type matchErr struct {
+	fieldKeys []string
+	message   string
+	expected  interface{}
+	actual    interface{}
 }
 
-func (m MatchError) Error() string {
-	return fmt.Sprintf("%s\n++ expected\n%s\n\n-- actual\n%s", m.mainErr, fieldsToString(m.fiExpected), fieldsToString(m.fiActual))
+func newMatchError(message string) *matchErr {
+	return &matchErr{message: message}
 }
 
-func newMatchError(err error, expected, actual []*fieldInfo) *MatchError {
-	return &MatchError{
-		mainErr:    err,
-		fiExpected: expected,
-		fiActual:   actual,
-	}
+func (m *matchErr) Field(k protoreflect.Name) *matchErr {
+	m.fieldKeys = append([]string{string(k)}, m.fieldKeys...)
+	return m
 }
+
+func (m *matchErr) Values(expected, actual interface{}) *matchErr {
+	m.expected = expected
+	m.actual = actual
+	return m
+}
+
+func (m *matchErr) ValueActual(actual interface{}) *matchErr {
+	m.actual = actual
+	return m
+}
+
+func (m *matchErr) ValueExpected(expected interface{}) *matchErr {
+	m.expected = expected
+	return m
+}
+

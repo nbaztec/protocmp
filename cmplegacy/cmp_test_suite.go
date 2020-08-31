@@ -1,4 +1,4 @@
-package cmp
+package cmplegacy
 
 import (
 	"github.com/golang/protobuf/ptypes"
