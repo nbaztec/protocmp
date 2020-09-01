@@ -14,6 +14,13 @@ message Outer {
   double double_val = 4;
   bytes bytes_val = 5;
 
+  message NestedInner {
+    message Inner {
+      string id = 1;
+    }
+    Inner inner = 1;
+  }
+
   message Inner {
     string id = 1;
   }
@@ -29,12 +36,14 @@ message Outer {
   EnumType enum_type = 8;
   oneof oneof_type {
     string oneof_string = 9;
-    int32 oneof_int = 10;
+    Inner oneof_message = 10;
   }
 
-  google.protobuf.Timestamp last_updated = 11;
-  google.protobuf.Duration last_updated_duration = 12;
-  google.protobuf.Any details = 13;
+  google.protobuf.Timestamp timestamp_type = 11;
+  google.protobuf.Duration duration_type = 12;
+  google.protobuf.Any any_type = 13;
 
   repeated int32 repeated_type_simple = 14;
+  map <string, int32> map_type_simple = 15;
+  NestedInner nested_message = 16;
 }

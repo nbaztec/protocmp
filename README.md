@@ -1,5 +1,5 @@
 # protocmp
-Compare protobuf messages and print diff
+Compare protobuf messages and compute diff
 
 ### Usage
 ```go
@@ -62,83 +62,9 @@ func TestFoo(t *testing.T) {
 ```
 ```
 /=== RUN   TestCmpAssertEqual
-     TestCmpAssertEqual: assert.go:18: field value mismatch IntVal
+     TestCmpAssertEqual: assert.go:18: int_val: value mismatch
          + 1
          - 10
-         
-         ++ expected
-         StrVal: foo
-         IntVal: 1
-         BoolVal: true
-         DoubleVal: 1.1
-         BytesVal: 
-          [0]: 1
-          [1]: 2
-         RepeatedType: 
-          [0]: 
-           Id: 1
-          [1]: 
-           Id: 2
-          [2]: <nil>
-         MapType: 
-          [A]: 
-           Id: AA
-          [B]: 
-           Id: BB
-          [C]: <nil>
-         EnumType: NOT_OK
-         OneofInt: 1
-         LastUpdated: 
-          Seconds: 1598794689
-          Nanos: 562367932
-         LastUpdatedDuration: 
-          Seconds: 1
-          Nanos: 0
-         Details: 
-          TypeUrl: mytype/v1
-          Value: 
-           [0]: 5
-         RepeatedTypeSimple: 
-          [0]: 9
-          [1]: 10
-          [2]: 11
-         
-         -- actual
-         StrVal: foo
-         IntVal: 10
-         BoolVal: true
-         DoubleVal: 1.1
-         BytesVal: 
-          [0]: 1
-          [1]: 2
-         RepeatedType: 
-          [0]: 
-           Id: 1
-          [1]: 
-           Id: 3
-          [2]: <nil>
-         MapType: 
-          [C]: <nil>
-          [A]: 
-           Id: AA
-          [B]: 
-           Id: BB
-         EnumType: NOT_OK
-         OneofInt: 1
-         LastUpdated: 
-          Seconds: 1598794689
-          Nanos: 562367932
-         LastUpdatedDuration: 
-          Seconds: 1
-          Nanos: 0
-         Details: 
-          TypeUrl: mytype/v1
-          Value: 
-           [0]: 5
-         RepeatedTypeSimple: 
-          [0]: 9
-          [1]: 10
-          [2]: 11
  --- FAIL: TestCmpAssertEqual (0.00s)
  FAIL
 ```
