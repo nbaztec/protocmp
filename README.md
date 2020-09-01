@@ -1,7 +1,31 @@
 # protocmp
-Compare protobuf messages and compute diff
+Compare protobuf v1 and v2 messages with proper error diffs. 
 
-### Usage
+The package is based on the google protobuf package and its respective contents.
+
+### Methods
+* `AssertEqual(t *testing.T, expected proto.Message, actual proto.Message)`
+* `Equal(t *testing.T, expected proto.Message, actual proto.Message) error`
+
+```go
+package foo
+
+import "github.com/nbaztec/protocmp"
+
+// using AssertEqual
+func TestFooBar(t *testing.T) {
+    protocmp.AssertEqual(t, expected, actual)
+}
+
+// using Equal
+func TestFooBar(t *testing.T) {
+    if err := protocmp.Equal(expected, actual); err != nil {
+        t.Errorf("failed proto: %s", err)
+    }
+}
+```
+
+### Example
 ```go
 func TestFoo(t *testing.T) {
     expected := &sample.Outer{
@@ -62,9 +86,10 @@ func TestFoo(t *testing.T) {
 ```
 ```
 /=== RUN   TestCmpAssertEqual
-     TestCmpAssertEqual: assert.go:18: int_val: value mismatch
-         + 1
-         - 10
+     TestCmpAssertEqual: main_test.go:18
+        int_val: value mismatch
+            + 1
+            - 10
  --- FAIL: TestCmpAssertEqual (0.00s)
  FAIL
 ```
