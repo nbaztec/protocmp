@@ -1,11 +1,10 @@
-package cmp
+package protocmp
 
 import (
 	"bytes"
 	"fmt"
 	"math"
 	"reflect"
-	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -41,13 +40,9 @@ func equal(x, y protoreflect.ProtoMessage) *matchErr {
 	return nil
 }
 
-func (m *matchErr) Error() string {
-	return fmt.Sprintf("%s: %s\n+ %v\n- %v", strings.Join(m.fieldKeys, "."), m.message, m.expected, m.actual)
-}
-
-
 func fmtError(v protoreflect.Value, fd protoreflect.FieldDescriptor) *matchErr {
 	pfmt := newFormatter()
+
 	switch {
 	case fd.IsList():
 		pfmt.printList("", v.List(), fd)
@@ -56,7 +51,28 @@ func fmtError(v protoreflect.Value, fd protoreflect.FieldDescriptor) *matchErr {
 		pfmt.printMap("", v.Map(), fd)
 		return newMatchError("value mismatch").Field(fd.Name()).Values(pfmt.String(), nil)
 	default:
+		switch fd.Kind() {
+		case protoreflect.MessageKind, protoreflect.GroupKind:
+			pfmt.printMessage(v.Message())
+			return newMatchError("value mismatch").Field(fd.Name()).Values(pfmt.String(), nil)
+		case protoreflect.StringKind:
+			return newMatchError("value mismatch").Field(fd.Name()).ValueExpected(quoteString(v.Interface()))
+		}
+
 		return newMatchError("value mismatch").Field(fd.Name()).Values(v.Interface(), nil)
+	}
+}
+
+func fmtMissingFieldError(fd protoreflect.FieldDescriptor, vx, vy protoreflect.Value) *matchErr {
+	switch  {
+	case fd.IsList() || fd.IsMap():
+		fallthrough
+	case fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind:
+		return fmtError(vx, fd).ValueActual(nil)
+	case fd.Kind() == protoreflect.StringKind:
+		return fmtError(vx, fd).ValueActual(quoteString(""))
+	default:
+		return fmtError(vx, fd).ValueActual(vy.Interface())
 	}
 }
 
@@ -77,50 +93,16 @@ func equalMessage(mx, my protoreflect.Message) *matchErr {
 	}
 
 
-	//if !mx.IsValid() && my.IsValid() {
-	//	return newMatchError("value mismatch").Values(nil, fmt.Sprintf("%v (*%s)", my.Interface(), my.Descriptor().Name()))
-	//}
-	//
-	//if mx.IsValid() && !my.IsValid() {
-	//	return newMatchError("value mismatch").Values(fmt.Sprintf("%v (*%s)", mx.Interface(), mx.Descriptor().Name()), nil)
-	//}
-
 	nx := 0
 	var equalErr *matchErr
 	mx.Range(func(fd protoreflect.FieldDescriptor, vx protoreflect.Value) bool {
 		nx++
 		vy := my.Get(fd)
 
-		switch  {
-		case fd.IsList() || fd.IsMap():
-			fallthrough
-		case fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind:
-			if !my.Has(fd) {
-				equalErr = fmtError(vx, fd).ValueActual(nil)
-				return false
-			}
-		default:
-			if !my.Has(fd) {
-				equalErr = fmtError(vx, fd).ValueActual(vy.Interface())
-				return false
-			}
+		if !my.Has(fd) {
+			equalErr = fmtMissingFieldError(fd, vx, vy)
+			return false
 		}
-		//switch fd.Name() {
-		//case "repeated_type":
-		//	pfmt := newFormatter()
-		//	pfmt.printList(string(fd.Name()), vx.List(), fd)
-		//	fmt.Println(pfmt)
-		//case "repeated_type_simple":
-		//	pfmt := newFormatter()
-		//	pfmt.printList(string(fd.Name()), vx.List(), fd)
-		//	fmt.Println(pfmt)
-		//case "map_type":
-		//	pfmt := newFormatter()
-		//	pfmt.printMap(string(fd.Name()), vx.Map(), fd)
-		//	fmt.Println(pfmt)
-		//}
-
-
 
 		if err := equalField(fd, vx, vy); err != nil {
 			equalErr = err
@@ -136,11 +118,12 @@ func equalMessage(mx, my protoreflect.Message) *matchErr {
 	ny := 0
 	my.Range(func(fd protoreflect.FieldDescriptor, vy protoreflect.Value) bool {
 		ny++
+		vx := mx.Get(fd)
+
 		if !mx.Has(fd) {
-			equalErr = fmtError(vy, fd).Values(nil, vy)
+			equalErr = fmtMissingFieldError(fd, vy, vx).ValuesSwap()
 			return false
 		}
-
 		return true
 	})
 
@@ -209,19 +192,6 @@ func equalList(fd protoreflect.FieldDescriptor, x, y protoreflect.List) *matchEr
 func equalValue(fd protoreflect.FieldDescriptor, x, y protoreflect.Value) *matchErr {
 	switch {
 	case fd.Message() != nil:
-		//xm := x.Message()
-		//ym := y.Message()
-		//
-		//if xm.IsValid() && !ym.IsValid() {
-		//	pfmt := newFormatter()
-		//	pfmt.printMessage(x.Message())
-		//	return newMatchError("value mismatch").Values(pfmt.String(), nil)
-		//}
-		//
-		//if !xm.IsValid() && ym.IsValid() {
-		//	return newMatchError("value mismatch").Values(nil, y)
-		//}
-
 		if err := equalMessage(x.Message(), y.Message()); err != nil {
 			return err
 		}
@@ -248,12 +218,15 @@ func equalValue(fd protoreflect.FieldDescriptor, x, y protoreflect.Value) *match
 		}
 
 		return nil
+	case fd.Kind() == protoreflect.StringKind:
+		if x.Interface() != y.Interface() {
+			return newMatchError("value mismatch").Values(quoteString(x.Interface()), quoteString(y.Interface()))
+		}
+
 	default:
 		if x.Interface() != y.Interface() {
 			return newMatchError("value mismatch").Values(x.Interface(), y.Interface())
 		}
-
-		return nil
 	}
 
 	return nil

@@ -1,11 +1,16 @@
-package cmp
+package protocmp
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+func quoteString(v interface{}) string {
+	return strconv.Quote(fmt.Sprintf("%s", v))
+}
 
 func newFormatter() *formatter {
 	return &formatter{}

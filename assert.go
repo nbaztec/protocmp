@@ -1,4 +1,4 @@
-package cmp
+package protocmp
 
 import (
 	"github.com/golang/protobuf/proto"

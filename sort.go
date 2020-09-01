@@ -1,4 +1,4 @@
-package cmp
+package protocmp
 
 import (
 	"sort"
