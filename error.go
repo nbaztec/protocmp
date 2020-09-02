@@ -67,5 +67,5 @@ func (m *matchErr) Diff() *DiffError {
 }
 
 func (m *matchErr) Error() string {
-	return fmt.Sprintf("%s: %s\n+ %v\n- %v", strings.Join(m.fieldKeys, "."), m.message, m.expected, m.actual)
+	return m.Diff().Error()
 }
