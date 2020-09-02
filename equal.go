@@ -32,14 +32,10 @@ func equal(x, y protoreflect.ProtoMessage) *matchErr {
 	my := y.ProtoReflect()
 	if mx.IsValid() != my.IsValid() {
 		if mx.IsValid() {
-			pfmt := newFormatter()
-			pfmt.printMessage(mx)
-			return newMatchError("value mismatch").Values(pfmt, nil).Field(mx.Descriptor().Name())
+			return newMatchError("value mismatch").Values(fmtMessage(mx), nil).Field(mx.Descriptor().Name())
 		}
 
-		pfmt := newFormatter()
-		pfmt.printMessage(my)
-		return newMatchError("value mismatch").Values(nil, pfmt).Field(my.Descriptor().Name())
+		return newMatchError("value mismatch").Values(nil, fmtMessage(my)).Field(my.Descriptor().Name())
 	}
 	if err := equalMessage(mx, my); err != nil {
 		return err
@@ -49,20 +45,15 @@ func equal(x, y protoreflect.ProtoMessage) *matchErr {
 }
 
 func fmtError(v protoreflect.Value, fd protoreflect.FieldDescriptor) *matchErr {
-	pfmt := newFormatter()
-
 	switch {
 	case fd.IsList():
-		pfmt.printList("", v.List(), fd)
-		return newMatchError("value mismatch").Field(fd.Name()).Values(pfmt.String(), nil)
+		return newMatchError("value mismatch").Field(fd.Name()).Values(fmtList(v.List(), fd), nil)
 	case fd.IsMap():
-		pfmt.printMap("", v.Map(), fd)
-		return newMatchError("value mismatch").Field(fd.Name()).Values(pfmt.String(), nil)
+		return newMatchError("value mismatch").Field(fd.Name()).Values(fmtMap(v.Map(), fd), nil)
 	default:
 		switch fd.Kind() {
 		case protoreflect.MessageKind, protoreflect.GroupKind:
-			pfmt.printMessage(v.Message())
-			return newMatchError("value mismatch").Field(fd.Name()).Values(pfmt.String(), nil)
+			return newMatchError("value mismatch").Field(fd.Name()).Values(fmtMessage(v.Message()), nil)
 		case protoreflect.StringKind:
 			return newMatchError("value mismatch").Field(fd.Name()).ValueExpected(quoteString(v.Interface()))
 		}
@@ -91,15 +82,11 @@ func equalMessage(mx, my protoreflect.Message) *matchErr {
 	}
 
 	if mx.IsValid() && !my.IsValid() {
-		pfmt := newFormatter()
-		pfmt.printMessage(mx)
-		return newMatchError("value mismatch").Values(pfmt.String(), nil)
+		return newMatchError("value mismatch").Values(fmtMessage(mx), nil)
 	}
 
 	if !mx.IsValid() && my.IsValid() {
-		pfmt := newFormatter()
-		pfmt.printMessage(my)
-		return newMatchError("value mismatch").Values(nil, pfmt)
+		return newMatchError("value mismatch").Values(nil, fmtMessage(my))
 	}
 
 

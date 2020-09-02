@@ -12,8 +12,22 @@ func quoteString(v interface{}) string {
 	return strconv.Quote(fmt.Sprintf("%s", v))
 }
 
-func newFormatter() *formatter {
-	return &formatter{}
+func fmtMessage(m protoreflect.Message) string {
+	f := &formatter{}
+	f.printMessage(m)
+	return f.String()
+}
+
+func fmtList(list protoreflect.List, fd protoreflect.FieldDescriptor) string {
+	f := &formatter{}
+	f.printList(list, fd)
+	return f.String()
+}
+
+func fmtMap(mmap protoreflect.Map, fd protoreflect.FieldDescriptor) string {
+	f := &formatter{}
+	f.printMap(mmap, fd)
+	return f.String()
 }
 
 type formatter struct {
@@ -66,24 +80,24 @@ func (f *formatter) printMessage(m protoreflect.Message) {
 			name = fd.Message().Name()
 		}
 		val := m.Get(fd)
-		f.printField(string(name), val, fd)
+		f.printField(val, fd)
 
 		f.print(" ")
 	}
 }
 
-func (f *formatter) printField(name string, val protoreflect.Value, fd protoreflect.FieldDescriptor) {
+func (f *formatter) printField(val protoreflect.Value, fd protoreflect.FieldDescriptor) {
 	switch {
 	case fd.IsList():
-		f.printList(name, val.List(), fd)
+		f.printList(val.List(), fd)
 	case fd.IsMap():
-		f.printMap(name, val.Map(), fd)
+		f.printMap(val.Map(), fd)
 	default:
 		f.printSingular(val, fd)
 	}
 }
 
-func (f *formatter) printList(name string, list protoreflect.List, fd protoreflect.FieldDescriptor) {
+func (f *formatter) printList(list protoreflect.List, fd protoreflect.FieldDescriptor) {
 	f.print("[")
 	defer f.trimAndPrint("]")
 
@@ -96,7 +110,7 @@ func (f *formatter) printList(name string, list protoreflect.List, fd protorefle
 	}
 }
 
-func (f *formatter) printMap(name string, mmap protoreflect.Map, fd protoreflect.FieldDescriptor) {
+func (f *formatter) printMap(mmap protoreflect.Map, fd protoreflect.FieldDescriptor) {
 	f.print("map[")
 	defer f.trimAndPrint("]")
 
