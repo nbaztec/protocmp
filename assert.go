@@ -31,10 +31,10 @@ func getFrame(skipFrames int) runtime.Frame {
 	if n > 0 {
 		frames := runtime.CallersFrames(programCounters[:n])
 		for more, frameIndex := true, 0; more && frameIndex <= targetFrameIndex; frameIndex++ {
-			var frameCandidate runtime.Frame
-			frameCandidate, more = frames.Next()
+			var f runtime.Frame
+			f, more = frames.Next()
 			if frameIndex == targetFrameIndex {
-				frame = frameCandidate
+				frame = f
 			}
 		}
 	}

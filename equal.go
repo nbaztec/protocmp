@@ -11,9 +11,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func Equal(x, y proto.Message) error {
+func Equal(x, y proto.Message) *DiffError {
 	if err := equal(proto.MessageV2(x), proto.MessageV2(y)); err != nil {
-		return err
+		return err.Diff()
 	}
 
 	return nil
@@ -31,7 +31,15 @@ func equal(x, y protoreflect.ProtoMessage) *matchErr {
 	mx := x.ProtoReflect()
 	my := y.ProtoReflect()
 	if mx.IsValid() != my.IsValid() {
-		return newMatchError("invalid value").Values(x, y)
+		if mx.IsValid() {
+			pfmt := newFormatter()
+			pfmt.printMessage(mx)
+			return newMatchError("value mismatch").Values(pfmt, nil).Field(mx.Descriptor().Name())
+		}
+
+		pfmt := newFormatter()
+		pfmt.printMessage(my)
+		return newMatchError("value mismatch").Values(nil, pfmt).Field(my.Descriptor().Name())
 	}
 	if err := equalMessage(mx, my); err != nil {
 		return err
@@ -89,7 +97,9 @@ func equalMessage(mx, my protoreflect.Message) *matchErr {
 	}
 
 	if !mx.IsValid() && my.IsValid() {
-		return newMatchError("value mismatch").Values(nil, my)
+		pfmt := newFormatter()
+		pfmt.printMessage(my)
+		return newMatchError("value mismatch").Values(nil, pfmt)
 	}
 
 

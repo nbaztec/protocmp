@@ -7,6 +7,6 @@ import (
 )
 
 func TestAssertEqual(t *testing.T) {
-	actual := patch(func(v *sample.Outer) {})
-	AssertEqual(t, patchExpected(func(v *sample.Outer) {}), actual)
+	actual := makeInput(func(v *sample.Outer) {})
+	AssertEqual(t, makeInput(nil), actual)
 }

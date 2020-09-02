@@ -1,6 +1,7 @@
 package protocmp
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -12,104 +13,139 @@ import (
 
 var now, _ = ptypes.TimestampProto(time.Date(2020, time.August, 30, 19, 05, 00, 00, time.UTC))
 
-func TestAssertString(t *testing.T) {
-	actual := patch(func(v *sample.Outer) {
-		v.StrVal = "invalid"
-	})
-
-	checkStandard(
+func TestAssertSuccess(t *testing.T) {
+	check(
 		t,
-		actual,
-		`str_val: value mismatch
-+ "foo"
-- "invalid"`,
+		makeInput(nil),
+		makeInput(nil),
+		nil,
+	)
+}
+
+func TestAssertNil(t *testing.T) {
+	check(
+		t,
+		makeInput(nil),
+		nil,
+		&DiffError{
+			Field:    "Outer",
+			Message:  "value mismatch",
+			Expected: `<str_val:"foo" int_val:1 bool_val:true double_val:1.1 bytes_val:[1 2] repeated_type:[<id:"1"> <id:"2"> <nil>] map_type:map[A:<id:"AA"> B:<id:"BB"> C:<nil>] enum_type:NOT_OK oneof_string:"1" timestamp_type:<seconds:1598814300> duration_type:<seconds:1> any_type:<type_url:"mytype/v1" value:[5]> repeated_type_simple:[9 10 11] map_type_simple:map[A:20 B:30 C:40] nested_message:<inner:<id:"123">>>`,
+			Actual:   `<nil>`,
+		},
+	)
+}
+
+func TestAssertString(t *testing.T) {
+	check(
+		t,
+		makeInput(nil),
+		makeInput(func(v *sample.Outer) {
+			v.StrVal = "invalid"
+		}),
+		&DiffError{
+			Field:    "str_val",
+			Message:  "value mismatch",
+			Expected: `"foo"`,
+			Actual:   `"invalid"`,
+		},
 	)
 }
 
 func TestAssertInt(t *testing.T) {
-	actual := patch(func(v *sample.Outer) {
-		v.IntVal = 42
-	})
-
-	checkStandard(
+	check(
 		t,
-		actual,
-		`int_val: value mismatch
-+ 1
-- 42`,
+		makeInput(nil),
+		makeInput(func(v *sample.Outer) {
+			v.IntVal = 42
+		}),
+		&DiffError{
+			Field:    "int_val",
+			Message:  "value mismatch",
+			Expected: `1`,
+			Actual:   `42`,
+		},
 	)
 }
 
 func TestAssertBool(t *testing.T) {
-	actual := patch(func(v *sample.Outer) {
-		v.BoolVal = false
-	})
-
-	checkStandard(
+	check(
 		t,
-		actual,
-		`bool_val: value mismatch
-+ true
-- false`,
+		makeInput(nil),
+		makeInput(func(v *sample.Outer) {
+			v.BoolVal = false
+		}),
+		&DiffError{
+			Field:    "bool_val",
+			Message:  "value mismatch",
+			Expected: `true`,
+			Actual:   `false`,
+		},
 	)
 }
 
 func TestAssertDouble(t *testing.T) {
-	actual := patch(func(v *sample.Outer) {
-		v.DoubleVal = 42.1
-	})
-
-	checkStandard(
+	check(
 		t,
-		actual,
-		`double_val: value mismatch
-+ 1.1
-- 42.1`,
+		makeInput(nil),
+		makeInput(func(v *sample.Outer) {
+			v.DoubleVal = 42.1
+		}),
+		&DiffError{
+			Field:    "double_val",
+			Message:  "value mismatch",
+			Expected: `1.1`,
+			Actual:   `42.1`,
+		},
 	)
 }
 
 func TestAssertBytes(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name         string
+		input        *sample.Outer
+		diffExpected string
+		diffActual   string
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.BytesVal = nil
 			}),
-			expectedErr: `bytes_val: value mismatch
-+ [1 2]
-- []`,
+			diffExpected: `[1 2]`,
+			diffActual:   `[]`,
 		},
 		{
 			name: "different length",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.BytesVal = []byte{0x6}
 			}),
-			expectedErr: `bytes_val: value mismatch
-+ [1 2]
-- [6]`,
+			diffExpected: `[1 2]`,
+			diffActual:   `[6]`,
 		},
 		{
 			name: "different value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.BytesVal = []byte{0x6, 0x8}
 			}),
-			expectedErr: `bytes_val: value mismatch
-+ [1 2]
-- [6 8]`,
+			diffExpected: `[1 2]`,
+			diffActual:   `[6 8]`,
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				&DiffError{
+					Field:    "bytes_val",
+					Message:  "value mismatch",
+					Expected: tt.diffExpected,
+					Actual:   tt.diffActual,
+				},
 			)
 		})
 	}
@@ -117,65 +153,78 @@ func TestAssertBytes(t *testing.T) {
 
 func TestAssertRepeated(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.RepeatedType = nil
 			}),
-			expectedErr: `repeated_type: value mismatch
-+ [<id:"1"> <id:"2"> <nil>]
-- <nil>`,
+			diff: &DiffError{
+				Field:    "repeated_type",
+				Message:  "value mismatch",
+				Expected: `[<id:"1"> <id:"2"> <nil>]`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "different length",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.RepeatedType = []*sample.Outer_Inner{
 					{Id: "0"},
 				}
 			}),
-			expectedErr: `repeated_type: length mismatch
-+ 3
-- 1`,
+			diff: &DiffError{
+				Field:    "repeated_type",
+				Message:  "length mismatch",
+				Expected: `3`,
+				Actual:   `1`,
+			},
 		},
 		{
 			name: "different value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.RepeatedType = []*sample.Outer_Inner{
 					{Id: "1"},
 					{Id: "3"},
 					nil,
 				}
 			}),
-			expectedErr: `repeated_type.[1].id: value mismatch
-+ "2"
-- "3"`,
+			diff: &DiffError{
+				Field:    "repeated_type.[1].id",
+				Message:  "value mismatch",
+				Expected: `"2"`,
+				Actual:   `"3"`,
+			},
 		},
 		{
 			name: "different value - nil",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.RepeatedType = []*sample.Outer_Inner{
 					{Id: "1"},
 					nil,
 					nil,
 				}
 			}),
-			expectedErr: `repeated_type.[1]: value mismatch
-+ <id:"2">
-- <nil>`,
+			diff: &DiffError{
+				Field:    "repeated_type.[1]",
+				Message:  "value mismatch",
+				Expected: `<id:"2">`,
+				Actual:   `<nil>`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -183,46 +232,56 @@ func TestAssertRepeated(t *testing.T) {
 
 func TestAssertRepeatedSimple(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.RepeatedTypeSimple = nil
 			}),
-			expectedErr: `repeated_type_simple: value mismatch
-+ [9 10 11]
-- <nil>`,
+			diff: &DiffError{
+				Field:    "repeated_type_simple",
+				Message:  "value mismatch",
+				Expected: `[9 10 11]`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "different length",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.RepeatedTypeSimple = []int32{1}
 			}),
-			expectedErr: `repeated_type_simple: length mismatch
-+ 3
-- 1`,
+			diff: &DiffError{
+				Field:    "repeated_type_simple",
+				Message:  "length mismatch",
+				Expected: `3`,
+				Actual:   `1`,
+			},
 		},
 		{
 			name: "different value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.RepeatedTypeSimple = []int32{9, 10, 1}
 			}),
-			expectedErr: `repeated_type_simple.[2]: value mismatch
-+ 11
-- 1`,
+			diff: &DiffError{
+				Field:    "repeated_type_simple.[2]",
+				Message:  "value mismatch",
+				Expected: `11`,
+				Actual:   `1`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -230,55 +289,68 @@ func TestAssertRepeatedSimple(t *testing.T) {
 
 func TestAssertMap(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.MapType = nil
 			}),
-			expectedErr: `map_type: value mismatch
-+ map[A:<id:"AA"> B:<id:"BB"> C:<nil>]
-- <nil>`,
+			diff: &DiffError{
+				Field:    "map_type",
+				Message:  "value mismatch",
+				Expected: `map[A:<id:"AA"> B:<id:"BB"> C:<nil>]`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "different length",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.MapType["X"] = nil
 			}),
-			expectedErr: `map_type: length mismatch
-+ 3
-- 4`,
+			diff: &DiffError{
+				Field:    "map_type",
+				Message:  "length mismatch",
+				Expected: `3`,
+				Actual:   `4`,
+			},
 		},
 		{
 			name: "different value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.MapType["B"].Id = "XYZ"
 			}),
-			expectedErr: `map_type.[B].id: value mismatch
-+ "BB"
-- "XYZ"`,
+			diff: &DiffError{
+				Field:    "map_type.[B].id",
+				Message:  "value mismatch",
+				Expected: `"BB"`,
+				Actual:   `"XYZ"`,
+			},
 		},
 		{
 			name: "different value - nil",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.MapType["B"] = nil
 			}),
-			expectedErr: `map_type.[B]: value mismatch
-+ <id:"BB">
-- <nil>`,
+			diff: &DiffError{
+				Field:    "map_type.[B]",
+				Message:  "value mismatch",
+				Expected: `<id:"BB">`,
+				Actual:   `<nil>`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -286,46 +358,56 @@ func TestAssertMap(t *testing.T) {
 
 func TestAssertMapSimple(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.MapTypeSimple = nil
 			}),
-			expectedErr: `map_type_simple: value mismatch
-+ map[A:20 B:30 C:40]
-- <nil>`,
+			diff: &DiffError{
+				Field:    "map_type_simple",
+				Message:  "value mismatch",
+				Expected: `map[A:20 B:30 C:40]`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "different length",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.MapTypeSimple["X"] = 0
 			}),
-			expectedErr: `map_type_simple: length mismatch
-+ 3
-- 4`,
+			diff: &DiffError{
+				Field:    "map_type_simple",
+				Message:  "length mismatch",
+				Expected: `3`,
+				Actual:   `4`,
+			},
 		},
 		{
 			name: "different value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.MapTypeSimple["B"] = 99
 			}),
-			expectedErr: `map_type_simple.[B]: value mismatch
-+ 30
-- 99`,
+			diff: &DiffError{
+				Field:    "map_type_simple.[B]",
+				Message:  "value mismatch",
+				Expected: `30`,
+				Actual:   `99`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -333,58 +415,70 @@ func TestAssertMapSimple(t *testing.T) {
 
 func TestAssertOneOf(t *testing.T) {
 	tests := []struct {
-		name        string
-		expected    *sample.Outer
-		input       *sample.Outer
-		expectedErr string
+		name     string
+		expected *sample.Outer
+		input    *sample.Outer
+		diff     *DiffError
 	}{
 		{
 			name: "nil value - simple",
-			expected: patchExpected(func(v *sample.Outer) {
+			expected: makeInput(func(v *sample.Outer) {
 				v.OneofType = &sample.Outer_OneofString{OneofString: "XYZ"}
 			}),
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.OneofType = nil
 			}),
-			expectedErr: `oneof_string: value mismatch
-+ "XYZ"
-- ""`,
+			diff: &DiffError{
+				Field:    "oneof_string",
+				Message:  "value mismatch",
+				Expected: `"XYZ"`,
+				Actual:   `""`,
+			},
 		},
 		{
 			name: "nil value - message",
-			expected: patchExpected(func(v *sample.Outer) {
+			expected: makeInput(func(v *sample.Outer) {
 				v.OneofType = &sample.Outer_OneofMessage{OneofMessage: &sample.Outer_Inner{Id: "XYZ"}}
 			}),
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.OneofType = nil
 			}),
-			expectedErr: `oneof_message: value mismatch
-+ <id:"XYZ">
-- <nil>`,
+			diff: &DiffError{
+				Field:    "oneof_message",
+				Message:  "value mismatch",
+				Expected: `<id:"XYZ">`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "value - simple",
-			expected: patchExpected(func(v *sample.Outer) {
+			expected: makeInput(func(v *sample.Outer) {
 				v.OneofType = &sample.Outer_OneofString{OneofString: "XYZ"}
 			}),
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.OneofType = &sample.Outer_OneofString{OneofString: "123"}
 			}),
-			expectedErr: `oneof_string: value mismatch
-+ "XYZ"
-- "123"`,
+			diff: &DiffError{
+				Field:    "oneof_string",
+				Message:  "value mismatch",
+				Expected: `"XYZ"`,
+				Actual:   `"123"`,
+			},
 		},
 		{
 			name: "value - message",
-			expected: patchExpected(func(v *sample.Outer) {
+			expected: makeInput(func(v *sample.Outer) {
 				v.OneofType = &sample.Outer_OneofMessage{OneofMessage: &sample.Outer_Inner{Id: "XYZ"}}
 			}),
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.OneofType = &sample.Outer_OneofMessage{OneofMessage: &sample.Outer_Inner{Id: "123"}}
 			}),
-			expectedErr: `oneof_message.id: value mismatch
-+ "XYZ"
-- "123"`,
+			diff: &DiffError{
+				Field:    "oneof_message.id",
+				Message:  "value mismatch",
+				Expected: `"XYZ"`,
+				Actual:   `"123"`,
+			},
 		},
 	}
 
@@ -395,7 +489,7 @@ func TestAssertOneOf(t *testing.T) {
 				t,
 				tt.expected,
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -403,46 +497,56 @@ func TestAssertOneOf(t *testing.T) {
 
 func TestAssertTimestamp(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.TimestampType = nil
 			}),
-			expectedErr: `timestamp_type: value mismatch
-+ <seconds:1598814300>
-- <nil>`,
+			diff: &DiffError{
+				Field:    "timestamp_type",
+				Message:  "value mismatch",
+				Expected: `<seconds:1598814300>`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "different value - seconds",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.TimestampType, _ = ptypes.TimestampProto(time.Date(2020, time.August, 30, 19, 05, 10, 00, time.UTC))
 			}),
-			expectedErr: `timestamp_type.seconds: value mismatch
-+ 1598814300
-- 1598814310`,
+			diff: &DiffError{
+				Field:    "timestamp_type.seconds",
+				Message:  "value mismatch",
+				Expected: `1598814300`,
+				Actual:   `1598814310`,
+			},
 		},
 		{
 			name: "different value - nanos",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.TimestampType, _ = ptypes.TimestampProto(time.Date(2020, time.August, 30, 19, 05, 00, 10, time.UTC))
 			}),
-			expectedErr: `timestamp_type.nanos: value mismatch
-+ 0
-- 10`,
+			diff: &DiffError{
+				Field:    "timestamp_type.nanos",
+				Message:  "value mismatch",
+				Expected: `0`,
+				Actual:   `10`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -450,46 +554,56 @@ func TestAssertTimestamp(t *testing.T) {
 
 func TestAssertDuration(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.DurationType = nil
 			}),
-			expectedErr: `duration_type: value mismatch
-+ <seconds:1>
-- <nil>`,
+			diff: &DiffError{
+				Field:    "duration_type",
+				Message:  "value mismatch",
+				Expected: `<seconds:1>`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "different value - seconds",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.DurationType = ptypes.DurationProto(2 * time.Second)
 			}),
-			expectedErr: `duration_type.seconds: value mismatch
-+ 1
-- 2`,
+			diff: &DiffError{
+				Field:    "duration_type.seconds",
+				Message:  "value mismatch",
+				Expected: `1`,
+				Actual:   `2`,
+			},
 		},
 		{
 			name: "different value - nanos",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.DurationType = ptypes.DurationProto(1005 * time.Millisecond)
 			}),
-			expectedErr: `duration_type.nanos: value mismatch
-+ 0
-- 5000000`,
+			diff: &DiffError{
+				Field:    "duration_type.nanos",
+				Message:  "value mismatch",
+				Expected: `0`,
+				Actual:   `5000000`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -497,37 +611,44 @@ func TestAssertDuration(t *testing.T) {
 
 func TestAssertAny(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.AnyType = nil
 			}),
-			expectedErr: `any_type: value mismatch
-+ <type_url:"mytype/v1" value:[5]>
-- <nil>`,
+			diff: &DiffError{
+				Field:    "any_type",
+				Message:  "value mismatch",
+				Expected: `<type_url:"mytype/v1" value:[5]>`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "different value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.AnyType.TypeUrl = "foo"
 			}),
-			expectedErr: `any_type.type_url: value mismatch
-+ "mytype/v1"
-- "foo"`,
+			diff: &DiffError{
+				Field:    "any_type.type_url",
+				Message:  "value mismatch",
+				Expected: `"mytype/v1"`,
+				Actual:   `"foo"`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
@@ -535,43 +656,50 @@ func TestAssertAny(t *testing.T) {
 
 func TestAssertNestedMessage(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *sample.Outer
-		expectedErr string
+		name  string
+		input *sample.Outer
+		diff  *DiffError
 	}{
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.NestedMessage = nil
 			}),
-			expectedErr: `nested_message: value mismatch
-+ <inner:<id:"123">>
-- <nil>`,
+			diff: &DiffError{
+				Field:    "nested_message",
+				Message:  "value mismatch",
+				Expected: `<inner:<id:"123">>`,
+				Actual:   `<nil>`,
+			},
 		},
 		{
 			name: "nil value",
-			input: patch(func(v *sample.Outer) {
+			input: makeInput(func(v *sample.Outer) {
 				v.NestedMessage.Inner.Id = "foo"
 			}),
-			expectedErr: `nested_message.inner.id: value mismatch
-+ "123"
-- "foo"`,
+			diff: &DiffError{
+				Field:    "nested_message.inner.id",
+				Message:  "value mismatch",
+				Expected: `"123"`,
+				Actual:   `"foo"`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			checkStandard(
+			check(
 				t,
+				makeInput(nil),
 				tt.input,
-				tt.expectedErr,
+				tt.diff,
 			)
 		})
 	}
 }
 
-func patchExpected(f func(v *sample.Outer)) *sample.Outer {
+func makeInput(f func(v *sample.Outer)) *sample.Outer {
 	v := &sample.Outer{
 		StrVal:    "foo",
 		IntVal:    1,
@@ -605,61 +733,29 @@ func patchExpected(f func(v *sample.Outer)) *sample.Outer {
 		NestedMessage: &sample.Outer_NestedInner{Inner: &sample.Outer_NestedInner_Inner{Id: "123"}},
 	}
 
-	f(v)
+	if f != nil {
+		f(v)
+	}
 
 	return v
 }
 
-func patch(f func(v *sample.Outer)) *sample.Outer {
-	v := &sample.Outer{
-		StrVal:    "foo",
-		IntVal:    1,
-		BoolVal:   true,
-		DoubleVal: 1.1,
-		BytesVal:  []byte{0x01, 0x02},
-		RepeatedType: []*sample.Outer_Inner{
-			{Id: "1"},
-			{Id: "2"},
-			nil,
-		},
-		MapType: map[string]*sample.Outer_Inner{
-			"A": {Id: "AA"},
-			"B": {Id: "BB"},
-			"C": nil,
-		},
-		EnumType:      sample.Outer_NOT_OK,
-		OneofType:     &sample.Outer_OneofString{OneofString: "1"},
-		TimestampType: now,
-		DurationType:  ptypes.DurationProto(1 * time.Second),
-		AnyType: &any.Any{
-			TypeUrl: "mytype/v1",
-			Value:   []byte{0x05},
-		},
-		RepeatedTypeSimple: []int32{9, 10, 11},
-		MapTypeSimple: map[string]int32{
-			"A": 20,
-			"B": 30,
-			"C": 40,
-		},
-		NestedMessage: &sample.Outer_NestedInner{Inner: &sample.Outer_NestedInner_Inner{Id: "123"}},
-	}
-
-	f(v)
-
-	return v
-}
-
-func checkStandard(t *testing.T, actual *sample.Outer, expectedErr string) {
-	check(t, patchExpected(func(v *sample.Outer) {}), actual, expectedErr)
-}
-
-func check(t *testing.T, expected *sample.Outer, actual *sample.Outer, expectedErr string) {
-	actualErr := ""
-	if err := Equal(expected, actual); err != nil {
-		actualErr = err.Error()
-	}
-
-	if expectedErr != actualErr {
+func check(t *testing.T, expected *sample.Outer, actual *sample.Outer, expectedErr *DiffError) {
+	actualErr := Equal(expected, actual)
+	if !reflect.DeepEqual(expectedErr, actualErr) {
 		t.Errorf("mismatch err\n++ want:\n%s\n-- got:\n%s", expectedErr, actualErr)
+		return
+	}
+
+	// check inverse
+	if expectedErr != nil {
+		x := expectedErr.Actual
+		expectedErr.Actual = expectedErr.Expected
+		expectedErr.Expected = x
+	}
+
+	actualErr = Equal(actual, expected)
+	if !reflect.DeepEqual(expectedErr, actualErr) {
+		t.Errorf("(inverse) mismatch err\n++ want:\n%s\n-- got:\n%s", expectedErr, actualErr)
 	}
 }

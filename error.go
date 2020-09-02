@@ -7,6 +7,17 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+type DiffError struct {
+	Field    string
+	Message  string
+	Expected string
+	Actual   string
+}
+
+func (d *DiffError) Error() string {
+	return fmt.Sprintf("%s: %s\n+ %s\n- %s", d.Field, d.Message, d.Expected, d.Actual)
+}
+
 type matchErr struct {
 	fieldKeys []string
 	message   string
@@ -44,6 +55,15 @@ func (m *matchErr) ValueActual(actual interface{}) *matchErr {
 func (m *matchErr) ValueExpected(expected interface{}) *matchErr {
 	m.expected = expected
 	return m
+}
+
+func (m *matchErr) Diff() *DiffError {
+	return &DiffError{
+		Field:    strings.Join(m.fieldKeys, "."),
+		Message:  m.message,
+		Expected: fmt.Sprintf("%v", m.expected),
+		Actual:   fmt.Sprintf("%v", m.actual),
+	}
 }
 
 func (m *matchErr) Error() string {
