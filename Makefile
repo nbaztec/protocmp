@@ -31,7 +31,7 @@ protos: guard-PROTOC_VERSION guard-PROTOC_GEN_GO_VERSION
 
 .PHONY: test
 test:
-	go test -race -test.v
+	go test -race -covermode atomic -coverprofile=covprofile.out -test.v .
 
 .PHONY: test-all
 test-all: clean
