@@ -5,12 +5,16 @@ import (
 	"path"
 	"runtime"
 	"strings"
-	"testing"
 
 	"github.com/golang/protobuf/proto"
 )
 
-func AssertEqual(t *testing.T, expected, actual proto.Message) {
+type TestingT interface {
+	Name() string
+	Fail()
+}
+
+func AssertEqual(t TestingT, expected, actual proto.Message) {
 	err := Equal(expected, actual)
 	if err != nil {
 		frame := getFrame(1)

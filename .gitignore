@@ -1,3 +1,4 @@
+*.out
 .idea/
 tools
 protos/sample/
