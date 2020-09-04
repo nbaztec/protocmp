@@ -20,12 +20,17 @@ func Equal(x, y proto.Message) *DiffError {
 }
 
 func equal(x, y protoreflect.ProtoMessage) *matchErr {
-	if x == nil || y == nil {
-		if x == nil && y == nil {
+	vx := reflect.ValueOf(x)
+	vy := reflect.ValueOf(y)
+
+	xNil := !vx.IsValid() || vx.IsNil()
+	yNil := !vy.IsValid() || vy.IsNil()
+	if xNil || yNil {
+		if xNil && yNil {
 			return nil
 		}
 
-		if x != nil {
+		if yNil {
 			return newMatchError("value mismatch").Values(fmtMessage(x.ProtoReflect()), y).Field(x.ProtoReflect().Descriptor().Name())
 		}
 
