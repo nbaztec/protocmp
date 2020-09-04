@@ -22,6 +22,15 @@ func TestAssertSuccess(t *testing.T) {
 	)
 }
 
+func TestAssertSuccessNil(t *testing.T) {
+	check(
+		t,
+		nil,
+		nil,
+		nil,
+	)
+}
+
 func TestAssertNil(t *testing.T) {
 	check(
 		t,
