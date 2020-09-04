@@ -19,8 +19,10 @@ jobs:
     - name: install dependencies
       run: go mod download
     - name: tests
+      env:
+        GO111MODULE: on
       run: make test-all
     - name: coverage
       env:
         COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
-      run: goveralls -coverprofile=covprofile.out -service=github
+      run: cd /tmp && go get github.com/mattn/goveralls && cd - && goveralls -coverprofile=covprofile.out -service=github-actions -repotoken=$COVERALLS_TOKEN

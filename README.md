@@ -1,4 +1,7 @@
 # protocmp
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
+[![Coverage Status](https://coveralls.io/repos/github/nbaztec/protocmp/badge.svg?branch=git-workflow)](https://coveralls.io/github/nbaztec/protocmp?branch=git-workflow)
+
 Compare protobuf v1 and v2 messages with proper error diffs. 
 
 The package is based on the google protobuf package and its respective contents.
