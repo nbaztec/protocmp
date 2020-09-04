@@ -1,6 +1,6 @@
 # protocmp
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
-[![Coverage Status](https://coveralls.io/repos/github/nbaztec/protocmp/badge.svg?branch=git-workflow)](https://coveralls.io/github/nbaztec/protocmp?branch=git-workflow)
+[![Coverage Status](https://coveralls.io/repos/github/nbaztec/protocmp/badge.svg?branch=main)](https://coveralls.io/github/nbaztec/protocmp?branch=main)
 
 Compare protobuf v1 and v2 messages with proper error diffs. 
 
