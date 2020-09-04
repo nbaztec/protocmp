@@ -35,11 +35,18 @@ func equal(x, y protoreflect.ProtoMessage) *matchErr {
 		}
 
 		return newMatchError("value mismatch").Values(x, fmtMessage(y.ProtoReflect())).Field(y.ProtoReflect().Descriptor().Name())
+
 	}
 
 	mx := x.ProtoReflect()
 	my := y.ProtoReflect()
+	if mx.IsValid() != my.IsValid() {
+		if mx.IsValid() {
+			return newMatchError("value mismatch").Values(fmtMessage(mx), nil).Field(mx.Descriptor().Name())
+		}
 
+		return newMatchError("value mismatch").Values(nil, fmtMessage(my)).Field(my.Descriptor().Name())
+	}
 	if err := equalMessage(mx, my); err != nil {
 		return err
 	}
